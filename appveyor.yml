@@ -1,0 +1,6 @@
+os: Visual Studio 2015
+build: off
+
+before_test:
+  - dotnet --info
+  - dotnet restore
