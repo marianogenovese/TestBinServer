@@ -48,4 +48,4 @@ install:
   - dotnet restore
 script:
   # Build sample
-  - dotnet build -c Debug
+  - dotnet build -c Debug src/TestBinServer
