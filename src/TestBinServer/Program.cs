@@ -25,7 +25,7 @@ namespace TestBinServer
 			builder.AddJsonFile("appsettings.json", optional: true, reloadOnChange: true);
 			IConfiguration config = builder.Build();
 			port = int.Parse(config["port"]);
-			//Task.Factory.StartNew(Stats);
+			Task.Factory.StartNew(Stats);
 			RunServerForNode();
 		}
 
@@ -51,21 +51,30 @@ namespace TestBinServer
 			UvTcpListener listener = new UvTcpListener(uvThread, new IPEndPoint(ip, port));
 			listener.OnConnection(async connection =>
 			{
+				Interlocked.Increment(ref connectionCounter);
 				var input = connection.Input;
 				var output = connection.Output;
 
 				while (true)
 				{
 
-					if (output.Completion.IsCompleted)
+					try
 					{
-						// We're done with this connection
+						if (input.Completion.IsCompleted || output.Completion.IsCompleted)
+						{
+							// We're done with this connection
+							break;
+						}
+
+						var binDate = Encoding.UTF8.GetBytes(DateTime.Now.ToString());
+						await output.WriteAsync(binDate, 0, binDate.Length);
+						Interlocked.Increment(ref sendCounter);
+						await Task.Delay(r.Next(0, 500));
+					}
+					catch (Exception e)
+					{
 						break;
 					}
-
-					var binDate = Encoding.UTF8.GetBytes(DateTime.Now.ToString());
-					await output.WriteAsync(binDate, 0, binDate.Length);
-					await Task.Delay(r.Next(0, 500));
 				}
 			});
 
@@ -97,7 +106,7 @@ namespace TestBinServer
 					try
 					{
 						// Wait for data
-						inputBuffer = await input;
+						inputBuffer = await input.ReadAsync();
 					}
 					catch (Exception ex)
 					{
