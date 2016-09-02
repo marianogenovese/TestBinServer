@@ -1,3 +1,4 @@
+// node test-tcp.js server=192.168.100.5:8001
 var net = require('net');
 
 var ip;
