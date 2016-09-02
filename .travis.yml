@@ -1,0 +1,3 @@
+script:
+  # Build sample
+  - dotnet build -c Debug
