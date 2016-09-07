@@ -2,7 +2,11 @@
 # This .gitignore file was automatically created by Microsoft(R) Visual Studio.
 ################################################################################
 
-/.vs/TestBinServer/v14/.suo
-/.vs/restore.dg
-bin/
-obj/
+[Oo]bj/
+[Bb]in/
+.vs/
+*.user
+*.suo
+*.cache
+project.lock.json
+.build/
