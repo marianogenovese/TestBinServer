@@ -7128,8 +7128,8 @@
   },
   "projectFileDependencyGroups": {
     "": [
-      "Channels >= 0.2.0-beta-15075",
-      "Channels.Networking.Libuv >= 0.2.0-beta-15075",
+      "Channels >= 0.2.0-*",
+      "Channels.Networking.Libuv >= 0.2.0-*",
       "Microsoft.Extensions.Configuration.Json >= 1.0.0",
       "Microsoft.NETCore.App >= 1.0.0"
     ],
