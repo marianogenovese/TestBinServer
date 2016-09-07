@@ -66,8 +66,13 @@ namespace TestBinServer
 							break;
 						}
 
-						var binDate = Encoding.UTF8.GetBytes(DateTime.Now.ToString());
-						await output.WriteAsync(binDate, 0, binDate.Length);
+						WritableBuffer oBuffer = output.Alloc();
+						Span<byte> span = new Span<byte>(Encoding.UTF8.GetBytes(DateTime.Now.ToString()));
+						oBuffer.Ensure(span.Length);
+						oBuffer.Write(span);
+						oBuffer.CommitBytes(span.Length);
+						oBuffer.Commit();
+						await oBuffer.FlushAsync();
 						Interlocked.Increment(ref sendCounter);
 						await Task.Delay(r.Next(0, 500));
 					}
@@ -133,8 +138,9 @@ namespace TestBinServer
 						var outputbuffer = connection.Output.Alloc();
 						//outputbuffer.Append(ref lenghtBuffer);
 						//outputbuffer.Append(ref messageBuffer);
-						outputbuffer.Write(lenghtBuffer.FirstSpan.Array, lenghtBuffer.FirstSpan.Offset, lenghtBuffer.FirstSpan.Length);
-						outputbuffer.Write(messageBuffer.FirstSpan.Array, messageBuffer.FirstSpan.Offset, messageBuffer.FirstSpan.Length);
+						outputbuffer.Write(lenghtBuffer.FirstSpan);
+						//outputbuffer.Write(messageBuffer.FirstSpan.Array, messageBuffer.FirstSpan.Offset, messageBuffer.FirstSpan.Length);
+						outputbuffer.Write(messageBuffer.FirstSpan);
 						await outputbuffer.FlushAsync();
 						Interlocked.Increment(ref sendCounter);
 						//connection.Output.CompleteWriting();
@@ -156,7 +162,7 @@ namespace TestBinServer
 
 		private unsafe static int ReadLength(ReadableBuffer buffer)
 		{
-			return ((((byte*)buffer.FirstSpan.BufferPtr)[0] & 0xFF) << 8) | (((byte*)buffer.FirstSpan.BufferPtr)[1] & 0xFF);
+			return ((((byte*)buffer.FirstSpan.UnsafePointer)[0] & 0xFF) << 8) | (((byte*)buffer.FirstSpan.UnsafePointer)[1] & 0xFF);
 		}
 	}
 }
