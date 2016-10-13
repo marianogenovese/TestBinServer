@@ -1,4 +1,6 @@
 ﻿using Channels;
+using Channels.Text;
+using Channels.Text.Primitives;
 using Channels.Networking.Libuv;
 using Microsoft.Extensions.Configuration;
 using System;
@@ -46,7 +48,6 @@ namespace TestBinServer
 		private static void RunServerForNode()
 		{
 			UvThread uvThread = new UvThread();
-			var x = uvThread.ChannelFactory.CreateChannel();
 			var ip = IPAddress.Any;
 			UvTcpListener listener = new UvTcpListener(uvThread, new IPEndPoint(ip, port));
 			listener.OnConnection(async connection =>
@@ -54,24 +55,22 @@ namespace TestBinServer
 				Interlocked.Increment(ref connectionCounter);
 				var input = connection.Input;
 				var output = connection.Output;
+				var flag = false;
 
-				while (true)
+				//Used for stop sending info to connected client.
+				await Task.Factory.StartNew(async () =>
 				{
+					//Wait for client disconnection.
+					var result = await input.ReadAsync();
+					flag = true;
+				});
 
+				while (!flag)
+				{
 					try
 					{
-						if (input.Completion.IsCompleted || output.Completion.IsCompleted)
-						{
-							// We're done with this connection
-							break;
-						}
-
 						WritableBuffer oBuffer = output.Alloc();
-						Span<byte> span = new Span<byte>(Encoding.UTF8.GetBytes(DateTime.Now.ToString()));
-						oBuffer.Ensure(span.Length);
-						oBuffer.Write(span);
-						oBuffer.CommitBytes(span.Length);
-						oBuffer.Commit();
+						oBuffer.WriteUtf8String(DateTime.Now.ToString("dd/MM/yyyy HH:mm:ss:ms"));
 						await oBuffer.FlushAsync();
 						Interlocked.Increment(ref sendCounter);
 						await Task.Delay(r.Next(0, 500));
@@ -91,78 +90,6 @@ namespace TestBinServer
 
 			listener.Stop();
 			uvThread.Dispose();
-		}
-
-		private static void RunServerForTSP()
-		{
-			UvThread uvThread = new UvThread();
-			var x = uvThread.ChannelFactory.CreateChannel();
-			var ip = IPAddress.Any;
-			UvTcpListener listener = new UvTcpListener(uvThread, new IPEndPoint(ip, port));
-			listener.OnConnection(async connection =>
-			{
-				Interlocked.Increment(ref connectionCounter);
-				var input = connection.Input;
-
-				while (true)
-				{
-					ReadableBuffer inputBuffer;
-
-					try
-					{
-						// Wait for data
-						inputBuffer = await input.ReadAsync();
-					}
-					catch (Exception ex)
-					{
-						var eee = ex;
-						return;
-					}
-
-
-					if (inputBuffer.IsEmpty && input.Completion.IsCompleted)
-					{
-						// We're done with this connection
-						break;
-					}
-
-					// Get the buffer
-					var lenghtBuffer = inputBuffer.Slice(0, 4);
-					var length = ReadLength(lenghtBuffer);
-
-					if (length > 0)
-					{
-						Interlocked.Increment(ref receiveCounter);
-						var messageBuffer = inputBuffer.Slice(4, length);
-						// Copy from the file channel to the console channel
-						var outputbuffer = connection.Output.Alloc();
-						//outputbuffer.Append(ref lenghtBuffer);
-						//outputbuffer.Append(ref messageBuffer);
-						outputbuffer.Write(lenghtBuffer.FirstSpan);
-						//outputbuffer.Write(messageBuffer.FirstSpan.Array, messageBuffer.FirstSpan.Offset, messageBuffer.FirstSpan.Length);
-						outputbuffer.Write(messageBuffer.FirstSpan);
-						await outputbuffer.FlushAsync();
-						Interlocked.Increment(ref sendCounter);
-						//connection.Output.CompleteWriting();
-					}
-
-					inputBuffer.Consumed();
-				}
-			});
-
-			listener.Start();
-
-			var pid = System.Diagnostics.Process.GetCurrentProcess().Id;
-			Console.WriteLine($"Listening on {ip} on port {port} / PID {pid}");
-			Console.ReadKey();
-
-			listener.Stop();
-			uvThread.Dispose();
-		}
-
-		private unsafe static int ReadLength(ReadableBuffer buffer)
-		{
-			return ((((byte*)buffer.FirstSpan.UnsafePointer)[0] & 0xFF) << 8) | (((byte*)buffer.FirstSpan.UnsafePointer)[1] & 0xFF);
 		}
 	}
 }
